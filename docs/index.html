@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>crisp-game-lib</title>
+    <meta
+      name="viewport"
+      content="width=device-width, height=device-height,
+    user-scalable=no, initial-scale=1, maximum-scale=1"
+    />
+    <script src="https://unpkg.com/sounds-some-sounds@1.0.5/build/index.js"></script>
+    <script src="https://unpkg.com/gif-capture-canvas@1.1.0/build/index.js"></script>
+    <script src="https://unpkg.com/terser@4.6.11/dist/bundle.min.js"></script>
+    <script src="https://unpkg.com/pixi.js@5.3.0/dist/pixi.min.js"></script>
+    <script src="https://unpkg.com/pixi-filters@3.1.1/dist/pixi-filters.js"></script>
+    <script>
+      var module = {};
+    </script>
+    <script src="https://unpkg.com/lodash.clonedeep@4.5.0/index.js"></script>
+    <script src="bundle.js"></script>
+    <script>
+
+title = "GO FEESH";
+
+
+description = `
+[Hold]    Ready!
+[Release] Jump!
+`;
+
+
+
+characters = [
+  `
+  B BBB
+  BBBBlB
+  B BBB
+  `,
+  `
+   GGGG
+  G    G
+  G    G
+  G    G
+   GGGG
+  `
+];
+
+const canvas ={
+	width: 100,
+	height: 50,
+}
+
+options = {
+	viewSize: { x: canvas.width, y: canvas.height },
+	theme: "crt",
+	seed: 10,
+	isPlayingBgm: true,
+};
+
+//hit coin - hit sound
+//launch fish - jump sound
+//bgm 
+
+
+// declare fish
+/**
+ * @typedef { object } fish
+ * @property { Vector } pos
+ * @property { number } rotation
+ * @property { Vector } speed
+ */
+let fish;
+let fish_moveEnd;
+let fish_indicator_rotation;
+let fish_indicator_speed;
+let fish_speed;
+let fish_startTime;
+let fish_reset;
+
+
+// declare coins
+/**
+ * @typedef { object } coins
+ * @property { Vector } pos
+ * @property { number } point
+ */
+ let coins;
+ let COINS_BASIC_SCORE;
+ let COINS_NUMBER;
+ let coins_rnd_pos;
+
+
+
+ //for player control
+let firstClick;
+let secondClick;
+let twoClicksDuration;
+let holdDuration;
+let holdCheck_oneTime;
+let isJustHold;
+let enableControl;
+
+//time event 
+let gobalTimer = 0;
+let currentTime;
+let waitTime;
+
+function update() {
+
+	//time event setup
+	gobalTimer++;
+	currentTime = (gobalTimer / 60).toFixed(3);
+
+  if (!ticks) {
+	//init fish
+	fish = [];
+	fish_moveEnd = false;
+	fish_indicator_rotation = 0;
+	fish_indicator_speed = 0.02;
+	fish_speed = 0.5;
+	fish_reset = false;
+
+	//init coins
+	coins = [];
+	COINS_BASIC_SCORE = 1;
+	COINS_NUMBER = 3;
+
+	//system setup
+	isJustHold = false;
+	enableControl = true;
+  }
+
+  //draw seawater
+  color("light_blue");
+  rect(0,35, 100, 15);
+
+  //add fish to system
+
+  if(fish.length == 0){
+	fish.push({
+		pos: vec(10, 34),
+		speed: vec(0, 0),
+	});
+	fish_indicator_rotation = 0;
+	fish_reset = false;
+  }
+
+
+
+
+
+    //check the fish is out of the canvas
+	remove(fish, (f) => {
+
+	  //draw the fish
+	  color("blue");
+	  char("a", fish[0].pos);
+
+	if(f.pos.x > canvas.width || f.pos.y > canvas.height ){
+		fish_reset = true
+		enableControl = true;
+		isJustHold = false;
+	}
+	return(fish_reset);
+  });
+	
+
+ 
+
+  //add coins to the system
+  if(coins.length == 0 ){
+	for(let i = 0; i < COINS_NUMBER; i++){
+		coins_rnd_pos = vec(
+			rnd(15, 80),
+			rnd(10, 32),
+		);
+
+		coins.push({
+			pos: coins_rnd_pos,
+			point: coins_rnd_pos.y,
+		});
+	}
+  }//if end
+
+
+
+
+  //draw coins
+	remove(coins, (c) => {
+
+		color("yellow");
+		let hitFish = char("b", c.pos).isColliding.char.a;
+
+		if(hitFish){
+			particle(c.pos,
+					50, // The number of particles
+					1, // The speed of the particles
+					PI, // The emitting angle
+					2 * PI  // The emitting width
+				);
+
+				addScore(c.point, c.pos);
+				play("coin");
+		}
+		return (hitFish);
+	});
+
+		if (input.isJustPressed) {
+		//first click = true means it's single click
+		if (!firstClick) {
+			firstClick = true;
+		} else {
+			//second click = true means it's double click
+			secondClick = true;
+			firstClick = false;
+		}
+
+		
+
+	}
+	if (input.isPressed) {
+		holdDuration++;
+		//if u hold, it will run hold code instead of single/double click
+		if (holdDuration >= 15) {
+			//=====================================
+			//put your code for holding here
+			
+			if(enableControl){
+				//draw indicator
+
+
+
+				if (fish_indicator_rotation < -PI / 2 || fish_indicator_rotation > 0) {
+					fish_indicator_speed = -fish_indicator_speed;
+				}
+				//
+				fish_indicator_rotation -= fish_indicator_speed;
+
+				color("light_red");
+				bar(fish[0].pos.x + 5, fish[0].pos.y, 10, 1, fish_indicator_rotation, 0);
+
+				//=====================================
+				secondClick = false;
+				firstClick = false;
+				isJustHold = true;
+
+			}
+
+		}
+	} else {
+		if (firstClick && twoClicksDuration < 7) {
+			twoClicksDuration++;
+		} else {
+			if (firstClick && holdDuration < 15) {
+				//=====================================
+				//put your code for single click here
+
+				//=====================================
+			}
+			if (secondClick && holdDuration < 15) {
+				//=====================================
+				//put your code for double click here		
+
+				//=====================================
+				secondClick = false;
+			}
+
+			holdDuration = 0;
+			twoClicksDuration = 0;
+			firstClick = false;
+		}
+
+		if(fish.length != 0){
+			if(isJustHold){
+			play("jump");
+			isJustHold = false;
+			enableControl = false;
+			fish_startTime = currentTime;
+			fish[0].speed.x = cos(fish_indicator_rotation) * fish_speed;
+			fish[0].speed.y = sin(fish_indicator_rotation) * fish_speed;
+		}
+
+		if(currentTime - fish_startTime >= 2){
+			fish[0].pos.x += fish[0].speed.x;
+			fish[0].pos.y -= fish[0].speed.y;
+		}else{
+			fish[0].pos.x += fish[0].speed.x;
+			fish[0].pos.y += fish[0].speed.y;
+		}
+
+
+
+		}
+
+		holdCheck_oneTime = false;
+	}
+
+
+
+
+
+}
+
+      window.addEventListener("load", onLoad);
+    </script>
+  </head>
+  <body style="background: #ddd"></body>
+</html>
